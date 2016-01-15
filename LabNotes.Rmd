@@ -1,0 +1,34 @@
+---
+title: 'STATS415: Data Mining Labs'
+author: "Marian L. Schmidt"
+date: "January 15, 2016"
+output: html_document
+---
+
+
+### Lab 1:  January 15th, 2016
+Introduction to R
+
+```{r}
+x <- c(1,2,3,4,5)
+length(x)
+x <- c(1,6,2)
+length(x)
+
+j <- matrix(data = c(1, 2, 3, 4), nrow = 2, ncol = 2)
+j
+r <- matrix(c(5, 6, 7, 8), 2, 2)
+r
+
+
+x = rnorm 
+
+set.seed(2016)
+x <- rnorm(100)
+y <- rnorm(100)
+mean(x)
+mean(y)
+plot(x,y)
+
+```
+
