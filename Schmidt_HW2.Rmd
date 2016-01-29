@@ -1,0 +1,188 @@
+---
+title: "STATS 415 - Homework 2"
+author: "Marian L. Schmidt"
+date: "January 29, 2016"
+output: html_document
+---
+
+```{r load packages, echo = TRUE, eval = TRUE, fig.align='center'}
+library(ISLR)
+library(dplyr) # summary stats
+library(pander) # for making tables 
+```
+
+
+```{r read data in, echo = TRUE, eval = TRUE, fig.align='center'}
+# 1a: Read the Data into R 
+college <- read.csv("data/College.csv") 
+
+#1b: Make the first column of the data frame the row names 
+rownames(college) = college[,1] 
+# Then remove the extra column 
+college$X = NULL # same as college <- college[,-1]
+dim(college) # Number of rows, Number of Columns
+str(college) # Tells us the type of data that is in college
+```
+Our data has `r nrow(college)` colleges and `r ncol(college)` variables.  `Private` is a binary, qualitative, nominal variable while all of the other columns (e.g. `Enroll`, `Top10perc`) are continuous, quantitative ratio variables.  The `S.F.Ratio`, which represents the student to faculty ratio is a numerical data structure while all the others are integers.
+
+
+### 1.c.ii and 1.c.ii
+```{r, echo = TRUE, eval = TRUE, fig.align='center', fig.width=6, fig.height=6}
+#1c
+summary(college)
+pairs(college[1:10])
+```
+In the plots above there are many pairwise relationships.  It appears that the there is a very strong relationship between `Enroll` and `F.Undergrad`.  There also appears to be a strong relationship between `Outstate` and `Room.Board`.
+
+
+### 1.c.iii
+```{r private vs out of state, echo = TRUE, eval = TRUE, fig.align='center', fig.width=5, fig.height=5}
+# Create a boxplot where Private instituiton is the explantory varialbe and the response is Out of state Tuition.
+par(mfrow = c(1,1))
+plot(college$Private, college$Outstate, xlab = "Private Institution?", 
+     main = "Private Institutions Have Higher Out of State Tuition",
+     ylab = "Out of State Tuition", col = "cornflowerblue")
+```
+In the figure above it is clear that private institutions have higher out of state tuition compared to public institutions.  But by how much on average?  Below in the table, we can see that the average out of state tuition in private institutions is $11802 while public instition out of state is $6813.  Therefore, on average it costs $`r 11802-6813` more to go to a private instition.
+
+
+```{r private stats, echo = TRUE, eval = TRUE, fig.align='center'}
+# Let's look at the summaries for Private
+private_stats <- group_by(college, Private) %>%
+  summarize(Avg.Outstate = mean(Outstate))
+
+# Look at the average out of state for Private vs Public
+panderOptions("digits", 2)
+pander(private_stats)
+```
+
+### 1.c.iv
+##### Create a New column called "Elite" by binning the `Top10perc` variable.  An institution is `Elite` whenthe proportion of incoming students from the top 10% of their high school class exceeds 50%.
+
+```{r elite, echo = TRUE, eval = TRUE, fig.align='center', fig.width=5, fig.height=5}
+Elite <- rep("No", nrow(college))
+Elite[college$Top10perc >50] <- "Yes"
+Elite <- as.factor(Elite)
+college <- data.frame(college, Elite)
+
+pander(summary(college$Elite))
+plot(college$Elite, xlab = "Elite Institution?", ylim = c(0, 800),
+     ylab = "Number of Elite or Non-Elite Institution", col = "cornflowerblue", 
+     main = "Number of Elite Institutions")
+```
+Out of the 777 institutions, 78 are elite.  Therefore, `r 78/777*100`% are elite while `r 699/777*100`% are not elite.
+
+
+
+### 1.c.v
+```{r histograms, echo = TRUE, eval = TRUE, fig.width=6, fig.height=6, fig.align='center'}
+par(mfrow = c(3,2))
+hist(college$S.F.Ratio, main = "Student to Faculty Ratio\n breaks = 10", 
+     breaks = 10, col = "red", xlab = "Student to Faculty Ratio")
+hist(college$S.F.Ratio, main = "Student to Faculty Ratio\n breaks = 50", 
+     breaks = 50, col = "red", xlab = "Student to Faculty Ratio")
+hist(college$Outstate, main = "Out-of-State Tuition\n breaks = 10", 
+     breaks = 10, col = "purple", xlab = "Out-of-State Tuition")
+hist(college$Outstate, main = "Out-of-State Tuition\n breaks = 50", 
+     breaks = 50, col = "purple", xlab = "Out-of-State Tuition")
+hist(college$Top10perc, main = "Top 10% High School Students\n breaks = 10", 
+     breaks = 10, col = "gold", xlab = "Top 10% in High School")
+hist(college$Top10perc, main = "Top 10% High School Students\n breaks = 50", 
+     breaks = 50, col = "gold", xlab = "Top 10% in High School")
+```
+
+Above are three different types of distributions.  The **out of state tuition** is has the largest variance in the data while the **student to faculty ratio** has the highest frequency around 13 studnets per faculty and the **top 10% in high school** has the highest frequency around 15-20% of institions.
+
+### 1.c.vi
+```{r}
+lm.10outstate <- lm(Top10perc ~ Outstate, data=college)
+summary(lm.10outstate)
+
+par(mfrow = c(1,1))
+plot(college$Top10perc, college$Outstate, xlab = "Top 10 Percent High School Students", 
+     ylab = "Out of State Tuition")
+abline(lm(Outstate ~ Top10perc, data=college), lwd = 3, col = "red")
+```
+
+```{r qq, fig.align='center', fig.height=8, fig.width=8}
+par(mfrow = c(2,2))
+plot(lm.10outstate)
+```
+
+
+### Question 2
+#### Simple Linear Regression
+```{r linear regression, fig.align='center', fig.height=4, fig.width=10}
+str(Carseats)
+help(Carseats)
+colnames(Carseats)
+
+# Simple linear regression
+par(mfrow = c(1, 3))
+plot(Carseats$Price, Carseats$Sales, xlab = "Price", 
+     ylab = "Sales", main = "Simple Regression")
+lm.sales.price <- lm(Sales ~ Price, data = Carseats)
+summary(lm.sales.price)
+abline(lm.sales.price)
+
+plot(Carseats$Urban, Carseats$Sales, xlab = "Urban", 
+     ylab = "Sales", col = "red", main = "Urban?")
+lm.sales.urban <- lm(Sales ~ Urban, data = Carseats)
+summary(lm.sales.urban)
+
+plot(Carseats$US, Carseats$Sales, xlab = "US", 
+     ylab = "Sales", col = "blue", main = "US?")
+lm.sales.us <- lm(Sales ~ US, data = Carseats)
+summary(lm.sales.us)
+```
+
+### 2a
+#### Multiple Linear Regression
+```{r multiple linear regression}
+# multiple linear regression
+lm.sales <- lm(Sales ~ Price + Urban + US, data = Carseats)
+summary(lm.sales)
+```
+
+### 2b
+Above is a multiple linear regression of `Price`, `Urban`, and `US` trying to predict the `Sales` of carseats.  The model explains 23.35% (adjusted R^2) of the variation in the data and is more likely to happen than by chance (p < 2.2e-16).  
+
+Based on the coefficients, we can see that `Price` is the best indicator of `Sales` and negatively influences the sales.  In other words, as the price increases the sales decrease and this pattern is more likely to happen than by chance (p < 2.2e-16).  Since the p-value is so low, **we can reject the null hypothesis.**
+
+`Urban` on the other hand, is not significant as the p-value is 0.936 and **we CANNOT reject the null hypothesis**.  We can see from the plots above that there's very little difference between whether the carseats were bought in an urban environment or not.  Therefore, `Urban` does not help us to predict `Sales`.
+
+`US` is 2nd best indicator of `Sales` and positively impacts `Sales`.  Therefore, if the carseats are sold in the United States, the sales increase by a coefficient of 1.2.  Since the p-value is 4.86e-06,  this pattern is more likely to happen than by chance and **we can reject the null hypothesis.**
+
+
+### 2c
+
+$Sales = B_1(Price) + B_2(Urban) + B_3(US) + B_0 + E$
+
+Where:  
+
+  - $B_1$ is the coefficient for Price  
+  - $B_2$ is the coefficient for Urban  
+  - $B_3$ is the coefficient for US  
+  - $B_0$ is the y-intercept  
+  - $E$ is the error
+
+### 2d
+We can reject the null hypothesis for `Price` and `US` but we **cannot** reject the null hypothesis for `US`.
+
+### 2e
+```{r}
+# Not including Urban
+lm.noUrban <- lm(Sales ~ Price + US, data = Carseats)
+summary(lm.noUrban)
+```
+
+$Sales = B_1(Price) + B_2(US) + B_0 + E$
+
+Where:  
+
+  - $B_1$ is the coefficient for Price  
+  - $B_2$ is the coefficient for US  
+  - $B_0$ is the y-intercept  
+  - $E$ is the error
+
+The model above that does not include `Urban` and still explains 23.54% (adjusted R^2) of the variation in the data and is more likely to happen than by chance (p < 2.2e-16).  Compared with the previous model that does inclue `Urban`, here we gain explanatory power over 0.19% of the variation in the data (change in R2).
