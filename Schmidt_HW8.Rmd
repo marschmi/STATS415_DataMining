@@ -1,0 +1,28 @@
+---
+title: "STATS 415 - Homework 8 - Classification Trees"
+author: "Marian L. Schmidt | April 1, 2016"
+header-includes:
+- \usepackage{fancyhdr}
+- \pagestyle{fancy}
+output: pdf_document
+---
+
+```{r install packages, eval = TRUE, echo = FALSE}
+library(rpart)
+library("random-Forest")
+
+```
+
+
+
+The data set has been divided at random into two parts `spam-train` and `spam-test` that contain 2/3 and 1/3 of the original data respectively. Fit a classification tree using only the training set. Find the percentage of emails in the test set that were misclassified by your optimal tree. Of all the spam emails of the test set what percentage was misclassified and of all the non-spam emails of the test set what percentage was misclassified?
+
+
+
+
+(b) Plot a subtree of the optimal tree that has at most 8 terminal nodes. What are some of the variables that were used in tree construction?
+
+
+
+
+(c) Try (a) again using Random Forest. Use the “`importance()`” function to determine which variables are most important. Describe the effect of `m`, the number of variables considered at each split, on the error rate obtained.

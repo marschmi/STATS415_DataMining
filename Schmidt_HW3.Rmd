@@ -1,0 +1,219 @@
+---
+title: "Homework 4 - STATS 415"
+author: "Marian L. Schmidt"
+date: "February 19, 2016"
+output: pdf_document
+---
+
+```{r}
+library(ISLR)
+library(MASS)
+```
+
+##Question 1
+
+Run LDA and QDA on Training Data
+```{r q1}
+x1 <- c(-3, -2, 0, 1, -1, 2, 3, 4, 5, -1.5, -1, 0, 1, 0.5, 1, 2.5, 5)
+y1 <- c(-1, -1, -1, -1, 1, 1, 1, 1, 1, -1, -1, -1, -1, 1, 1, 1, 1)
+length(x1); length(y1);
+df <- data.frame(t(rbind(x1, y1))); df
+pairs(df)
+
+# Subset out Training Data
+train <- df[1:9,]
+
+# Run LDA on Training Data
+lda.train <- lda(y1 ~ x1, data = train)
+plot(lda.train)
+
+# Run QDA on Training Data
+qda.train <- qda(y1 ~ x1, data = train)
+```
+
+Test quality of LDA and QDA with testing data
+```{r}
+testing <- df[10:17,]
+
+# Run previous LDA on Testing Data
+lda.class <- predict(lda.train, testing)$class
+table(lda.class, y1[10:17])
+mean(lda.class != y1[10:17])
+
+# Run previous QDA on Testing Data
+qda.class <- predict(qda.train, testing)$class
+table(qda.class, y1[10:17])
+mean(qda.class != y1[10:17])
+```
+
+
+*Above it appears that the test error rate of LDA is `r mean(lda.class != y1[10:17])` and that the test error rate of QDA is `r mean(qda.class != y1[10:17])`.*  
+
+*LDA is a much less flexible classifier than QDA and therefore has a much lower variance. However, if the assumption of uniform variance is false, then LDA can suffer from high bias. In general, LDA tends to be better than QDA if there are relatively few training observations, so therefore reducing variance is crucial.  Here, since we have a few (9) training observations then we would prefer LDA.*
+
+
+## Question 2
+In this problem, you will develop a model to predict whether a given car gets high or low gas mileage based on the Auto data set.
+
+**(a)** Create a binary variable, `mpg01`, that contains a `1` if mpg contains a value above its median, and a `0` if mpg contains a value below its median. You can compute the median using the `median()` function. Note you may find it helpful to use the `data.frame()` function to create a single data set containing both `mpg01` and the other Auto variables.
+
+```{r 1a}
+summary(Auto[, -9])
+
+attach(Auto)
+
+mpg01 <- rep(0, length(mpg)) # create mpg01
+mpg01[mpg > median(mpg)] <- 1 # Assign 1 if mpg is above the median
+Auto_mpg01 <- data.frame(Auto, mpg01) # combine Auto and mpg01
+dim(Auto_mpg01)
+head(Auto_mpg01[, -9])
+attach(Auto_mpg01)
+```
+
+
+
+**(b)** Explore the data graphically in order to investigate the association between `mpg01` and the other features. Which of the other features seem most likely to be useful in predicting `mpg01`? Scatterplots and boxplots may be useful tools to answer this question. Describe your findings.
+
+```{r 1b, fig.align='center'}
+cor(Auto_mpg01[, -9]) # Show the correlations between the variables
+cols <- character(nrow(Auto_mpg01))
+cols[] <- "black"
+cols[Auto_mpg01$mpg01 == 1] <- "orangered"
+cols[Auto_mpg01$mpg01 == 0] <- "cornflowerblue"
+pairs(Auto_mpg01, col=cols) # Plot the scatterplot matrix
+
+par(mfrow=c(2,3))
+boxplot(weight ~ mpg01, data = Auto_mpg01, main = "Weight", 
+        xlab = "mpg01", ylab = "Weight",
+        col = c("cornflowerblue", "orangered"))
+
+boxplot(year ~ mpg01, data = Auto_mpg01, main = "Year", 
+        xlab = "mpg01", ylab = "Year",
+        col = c("cornflowerblue", "orangered"))
+
+boxplot(cylinders ~ mpg01, data = Auto_mpg01, main = "Cylinders", 
+        xlab = "mpg01", ylab = "Cylinders",
+        col = c("cornflowerblue", "orangered"))
+
+boxplot(acceleration ~ mpg01, data = Auto_mpg01, main = "Acceleration", 
+        xlab = "mpg01", ylab = "Acceleration",
+        col = c("cornflowerblue", "orangered"))
+
+boxplot(displacement ~ mpg01, data = Auto_mpg01, main = "Displacement", 
+        xlab = "mpg01", ylab = "Displacement",
+        col = c("cornflowerblue", "orangered"))
+
+boxplot(horsepower ~ mpg01, data = Auto_mpg01, main = "Horsepower", 
+        xlab = "mpg01", ylab = "Horsepower",
+        col = c("cornflowerblue", "orangered"))
+```
+
+*Based on the above plots, `mpg01` has a negative association with `Weight`, `Cylinders`, `Displacement`, and `Horsepower`.* 
+
+
+
+**(c)** Split the data into a training set and a test set.
+```{r 1c}
+train <- (year %% 2 == 0) # Split by even years 
+Auto_mpg01.train <- Auto_mpg01[train, ]
+Auto_mpg01.test <- Auto_mpg01[!train, ]
+mpg01.test <- mpg01[!train]
+
+```
+
+**(d)** Perform LDA on the training data in order to predict mpg01 using the variables that seemed most associated with mpg01 in (b). What is the test error of the model obtained?
+```{r 1d, fig.align='center'}
+fit.lda <- lda(mpg01 ~ cylinders + weight + displacement + horsepower, 
+               data = Auto_mpg01, subset = train)
+fit.lda
+
+plot(fit.lda)
+
+
+lda.class <- predict(fit.lda, Auto_mpg01.test)$class
+
+table(lda.class, mpg01.test)
+
+mean(lda.class != mpg01.test)
+```
+*Using all 4 predictors (`cylinders`, `weight`, `displacement`, and `horsepower`) with a Linear Discriminant Analysis the test error rate is 12.63736%.*
+
+
+
+
+**(e)** Perform QDA on the training data in order to predict mpg01 using the variables that seemed most associated with mpg01 in (b). What is the test error of the model obtained?
+
+```{r 1e}
+qda.fit <- qda(mpg01 ~ cylinders + weight + displacement + horsepower, 
+               data = Auto_mpg01, subset = train)
+qda.fit
+
+qda.class <- predict(qda.fit, Auto_mpg01.test)$class
+table(qda.class, mpg01.test)
+mean(qda.class != mpg01.test)
+```
+*Using all 4 predictors (`cylinders`, `weight`, `displacement`, and `horsepower`) with a Quadratic Discriminant Analysis the test error rate is 13.18681%.*
+
+**(f)** Perform logistic regression on the training data in order to predict `mpg01` using the variables that seemed most associated with `mpg01` in (b). What is the test error of the model obtained?
+```{r 1f}
+glm.fit <- glm(mpg01 ~ cylinders + weight + displacement + horsepower, 
+               data = Auto_mpg01, family = binomial, subset = train)
+summary(glm.fit)
+
+probs <- predict(glm.fit, Auto_mpg01.test, type = "response")
+glm.pred <- rep(0, length(probs))
+glm.pred[probs > 0.5] <- 1
+table(glm.pred, mpg01.test)
+mean(glm.pred != mpg01.test)
+```
+*Using all 4 predictors (`cylinders`, `weight`, `displacement`, and `horsepower`) with a Logistic Regression Analysis the test error rate is 12.08791%.*
+
+**(g)** Perform KNN on the training data, with several values of `K`, in order to predict `mpg01`. Use only the variables that seemed most associated with `mpg01` in (b). What test errors do you obtain? Which value of `K` seems to perform the best on this data set?
+
+```{r 1g}
+library(class)
+train.X <- cbind(cylinders, weight, displacement, horsepower)[train, ]
+test.X <- cbind(cylinders, weight, displacement, horsepower)[!train, ]
+train.mpg01 <- mpg01[train]
+
+###  K = 1
+set.seed(12345)
+knn.pred.1 <- knn(train.X, test.X, train.mpg01, k = 1)
+table(knn.pred.1, mpg01.test)
+mean(knn.pred.1 != mpg01.test)
+```
+
+*With KNN Analysis (K = 1), the test error rate is `r mean(knn.pred.1 != mpg01.test) * 100`%.*
+
+```{r k=5}
+###  K = 5
+set.seed(12345)
+knn.pred.5 <- knn(train.X, test.X, train.mpg01, k = 5)
+table(knn.pred.5, mpg01.test)
+mean(knn.pred.5 != mpg01.test)
+```
+*With KNN Analysis (K = 5), the test error rate is `r mean(knn.pred.5 != mpg01.test) * 100`%.*
+
+
+
+```{r k=50}
+###  K = 50
+set.seed(12345)
+knn.pred.50 <- knn(train.X, test.X, train.mpg01, k = 50)
+table(knn.pred.50, mpg01.test)
+mean(knn.pred.50 != mpg01.test)
+```
+*With KNN Analysis (K = 50), the test error rate is `r mean(knn.pred.50 != mpg01.test) * 100`%.*
+
+
+```{r k=500}
+###  K = 500
+set.seed(12345)
+knn.pred.100 <- knn(train.X, test.X, train.mpg01, k = 100)
+table(knn.pred.100, mpg01.test)
+mean(knn.pred.100 != mpg01.test)
+```
+*With KNN Analysis (K = 100), the test error rate is `r mean(knn.pred.100 != mpg01.test) * 100`%.*
+
+*With the above KNN Analyses K = 100 and K = 50 perform the same with a the test error rate of `r mean(knn.pred.100 != mpg01.test) * 100`%.*
+

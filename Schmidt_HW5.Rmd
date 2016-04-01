@@ -1,0 +1,102 @@
+---
+title: "STATS 415 - Homework 5"
+author: "Marian L. Schmidt"
+date: "February 24, 2016"
+header-includes:
+- \usepackage{fancyhdr}
+- \pagestyle{fancy}
+output: pdf_document
+---
+
+
+**1.  The textbook describes that the `cv.glm()`function can be used in order to compute the LOOCV test error estimate. Alternatively, one could compute those quantities using just the `glm()` and `predict.glm()` functions, and a for loop. You will now take this approach in order to compute the LOOCV error for a simple logistic regression model on the Weekly data set.**
+
+```{r}
+# Load ISLR Library
+library(ISLR)
+
+# Set the Seed for reproducibility
+set.seed(232)
+
+# Look at what the data structure looks like
+# How many rows and columns?
+nrow(Weekly) # Number of Rows
+ncol(Weekly) # Number of columns
+
+#What does the data look like?
+head(Weekly)
+
+# What type of data do we have?
+str(Weekly)
+```
+
+**(a) Fit a logistic regression model that predicts Direction using Lag1 and Lag2.**
+```{r}
+# Fit the logistic regression with all the data 
+logistic_all <-  glm(Direction ~ Lag1 + Lag2, data = Weekly, family=binomial)
+summary(logistic_all)
+```
+
+**(b) Fit a logistic regression model that predicts Direction using Lag1 and Lag2 using all but the first observation.**
+
+```{r}
+# Fit the logistic regression with all the data except one observation 
+logistic_one <-  glm(Direction ~ Lag1 + Lag2, data = Weekly[-1,], family = binomial)
+summary(logistic_one)
+```
+
+**(c) Use the model from (b) to predict the direction of the first observation. You can do this by predicting that the first observation will go up if `Pr(Direction=“Up” | Lag1, Lag2) > 0.5`. Was this observation correctly classified?**
+
+```{r}
+# Create a prediction regarding the market
+logistic_prediction_up <- predict.glm(logistic_one, Weekly[1,], type = "response") > 0.05
+
+# Is the market predicted to go up for the first observation?
+logistic_prediction_up
+
+# Does the market actually go up?
+true_up <- Weekly[1, ]$Direction == "Up"
+
+# Does the prediction match the market reality?
+logistic_prediction_up != true_up
+```
+*This observation was incorrectly classified.  The prediction for the first observation is "Up", however, the actual observation was "Down".*
+
+
+**(d) Write a for loop from `i=1` to `i=n`, where `n` is the number of observations in the data set, that performs each of the following steps:**  
+  
+  1. **Fit a logistic regression model using all but the ith observation to predict Direction using Lag1 and Lag2.**  
+  2. **Compute the posterior probability of the market moving up for the ith observation.**  
+  3. **Use the posterior probability for the ith observation in order to predict whether or not the market moves up.**  
+  4. **Determine whether or not an error was made in predicting the direction for the ith observation. If an error was made, then indicate this as a 1, and otherwise indicate it as a 0.**  
+
+
+```{r}
+# Number of iterations in for loop
+n <- nrow(Weekly); n
+# Create 0s for error that we will fill in with ones
+prediction_error <- rep(0, n)
+for (i in 1:n){
+  # Step 1: Run a logistic regression leaving one observation point out
+  logistic_regression <- glm(Direction ~ Lag1 + Lag2, data = Weekly[-i,], family = binomial)
+  # Step 2: Create a prediction on the one observation not included in the logistic regression
+  market_pred_up <- predict.glm(logistic_regression, Weekly[i,], type = "response") > 0.05 
+  # Step 3: Pull out all
+  market_true_up <- Weekly[i, ]$Direction == "Up"  
+  # Step 4: If an error was made in our prediction, add a "1" to error vector
+  if(market_pred_up != market_true_up) prediction_error[i] <- 1 
+}
+prediction_error
+sum(prediction_error)
+```
+
+*In the above example of LOOCV, there are `r sum(prediction_error)` misclassified predictions out of `r n`.*  
+
+**(e) Take the average of the `n` numbers obtained in (d)iv in order to obtain the LOOCV estimate for the test error. Comment on the results.**
+
+```{r}
+mean(prediction_error) 
+mean(prediction_error) * 100
+```
+
+*The LOOCV estimate for the test error rate is `r mean(prediction_error) * 100`%*
