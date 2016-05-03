@@ -7,22 +7,110 @@ header-includes:
 output: pdf_document
 ---
 
-```{r install packages, eval = TRUE, echo = FALSE}
+```{r install packages, eval = TRUE, echo = FALSE, message = FALSE, include = FALSE}
 library(rpart)
-library("random-Forest")
+library(randomForest)
+library(tree)
+library(ISLR)
 
+column_names <- c("word_freq_make", "word_freq_address","word_freq_all","word_freq_3d","word_freq_our",
+                  "word_freq_over","word_freq_remove","word_freq_internet","word_freq_order","word_freq_mail",
+                  "word_freq_receive","word_freq_will","word_freq_people","word_freq_report","word_freq_addresses",
+                  "word_freq_free","word_freq_business","word_freq_email","word_freq_you","word_freq_credit",
+                  "word_freq_your","word_freq_font","word_freq_000","word_freq_money","word_freq_hp","word_freq_hpl",
+                  "word_freq_george","word_freq_650","word_freq_lab","word_freq_labs","word_freq_telnet",
+                  "word_freq_857","word_freq_data","word_freq_415","word_freq_85","word_freq_technology",
+                  "word_freq_1999","word_freq_parts","word_freq_pm","word_freq_direct","word_freq_cs",
+                  "word_freq_meeting","word_freq_original","word_freq_project","word_freq_re",
+                  "word_freq_edu","word_freq_table","word_freq_conference","char_freq_semi_colon","char_freq_parenthese",
+                  "char_freq_square_bracket","char_freq_exclamation","char_freq_dollar_sign",
+                  "char_freq_pound_symbol","capital_run_length_average",
+                  "capital_run_length_longest","capital_run_length_total", "spam_yes")
+
+test_data <- read.table("~/Desktop/stats415/STATS415_DataMining/Data/spam-test.txt", sep = ",")
+
+train_data <- read.table("~/Desktop/stats415/STATS415_DataMining/Data/spam-train.txt", sep = ",")
+
+colnames(test_data) <- column_names
+colnames(train_data) <- column_names
 ```
 
 
 
-The data set has been divided at random into two parts `spam-train` and `spam-test` that contain 2/3 and 1/3 of the original data respectively. Fit a classification tree using only the training set. Find the percentage of emails in the test set that were misclassified by your optimal tree. Of all the spam emails of the test set what percentage was misclassified and of all the non-spam emails of the test set what percentage was misclassified?
+(a) Fit a classification tree using only the training set. Find the percentage of emails in the test set that were misclassified by your optimal tree. Of all the spam emails of the test set what percentage was misclassified and of all the non-spam emails of the test set what percentage was misclassified?
 
+```{r echo = TRUE, eval = TRUE, fig.align="center", fig.width=12, fig.height=8}
+attach(train_data)
+spam_status <- ifelse(spam_yes == 1,"Yes","No")
+train_data <- data.frame(train_data, spam_status)
+# Fit the classification tree
+tree_spam <- tree(spam_status~.-spam_yes, data = train_data)
+plot(tree_spam) # Plot the tree
+text(tree_spam, pretty = 0) # add the predictor names and cutoffs
+summary(tree_spam) # The training error rate is 8.77%
+```
+
+
+```{r echo = FALSE, eval = TRUE, include = FALSE}
+attach(test_data)
+```
+
+````{r test tree, echo = TRUE, eval = TRUE, messages = FALSE, warnings = FALSE}
+set.seed(111)
+spam_prediction <- predict(tree_spam, test_data, type="class")
+yes_test <- ifelse(spam_yes == 1,"Yes","No")
+table(spam_prediction,yes_test)
+(854+540)/1534
+```
+
+*`r ((854+540)/1534)*100`% of the data was classified correctly, therefore the misclassification error is `r (1- ((854+540)/1534))*100`%.  There were 540 spam e-mails classified by the above classification tree model, however, in reality 618 of the test emails were spam.  Therefore, the misclassification of spam e-mails is `r (540/618)*100`%.  On the other hand, there were 854 e-mails classified as non-spam when in reality, there were 916 non-spam e-mails in the test data.  Thus, the misclssification of the non-spam e-mails is `r (854/916)*100`%*
 
 
 
 (b) Plot a subtree of the optimal tree that has at most 8 terminal nodes. What are some of the variables that were used in tree construction?
 
+```{r}
+cv_spam_tree <- cv.tree(tree_spam, FUN = prune.misclass)
+names(cv_spam_tree)
 
+par(mfrow = c(1,2)) # plot it!
+plot(cv_spam_tree$size, cv_spam_tree$dev, type = "b")
+plot(cv_spam_tree$k, cv_spam_tree$dev, type = "b")
 
+# Time to prune the tree to 8 nodes  
+prune_spam_tree <- prune.misclass(tree_spam, best = 8)
+par(mfrow = c(1,1))
+plot(prune_spam_tree)
+text(prune_spam_tree, pretty = 0)
+
+pred_spam_tree <- predict(prune_spam_tree, test_data, type="class")
+table(pred_spam_tree, yes_test)
+(854+531)/1534
+```
+
+*The variables that were used in the pruned tree with 8 nodes are `char_freq_exclamation`, `word_freq_remove`, `char_freq_dollar_sign`, `word_freq_remove`, `word_freq_money`, `word_freq_free`, and `capitol_run_length_average`.  These are many of the variables that were used in the larger tree.*  
 
 (c) Try (a) again using Random Forest. Use the “`importance()`” function to determine which variables are most important. Describe the effect of `m`, the number of variables considered at each split, on the error rate obtained.
+
+```{r random forest, echo = TRUE, eval = TRUE, fig.align="center", fig.width=12, fig.height=8}
+##  Including 8 variables
+rf_spam_8 <- randomForest(spam_status~.-spam_yes, data=train_data, mtry=8, importance = TRUE)
+yhat_rf_8 <- predict(rf_spam_8, newdata = test_data)
+yhat_rf_8_num <- as.numeric(ifelse(yhat_rf_8 == "Yes","1","0"))
+mean((yhat_rf_8_num-test_data$spam_yes)^2)
+head(importance(rf_spam_8), n = 5)
+
+# Including 12 variables
+rf_spam_12 <- randomForest(spam_status~.-spam_yes, data=train_data, mtry=12, importance = TRUE)
+yhat_rf <- predict(rf_spam_12, newdata = test_data)
+yhat_rf_12_num <- as.numeric(ifelse(yhat_rf == "Yes","1","0"))
+mean((yhat_rf_12_num-test_data$spam_yes)^2)
+head(importance(rf_spam_12), n = 5)
+
+#Plot most important variables for each model
+varImpPlot(rf_spam_8)
+```
+
+*For the 8 variable model the top 5 predictors, in order, are `char_freq_exclamation`, `capital_run_length_average`, `word_freq_remove`, `word_freq_free` and `capital_run_length_longest` while for the 12 variable model the top 5 predictors are `char_freq_exclamation`, `word_freq_remove`, `word_freq_free`, `capital_run_length_average`, and `char_freq_dollar_sign`. The model with fewer variables has a lower MSE as reported in the code above.*
+
+

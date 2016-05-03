@@ -162,3 +162,310 @@ plot_grid(p1, p2, p3, labels = c("A", "B", "C"), nrow = 1)
 
 ```
 
+
+
+
+### Lab 4
+
+```{r}
+library(ISLR)
+names(Smarket)
+dim(Smarket)
+summary(Smarket)
+pairs(Smarket)
+
+
+# The cor() function produce a matrix that contains all of the pairwise correlations among the numeric predictors in a data set. Since “Direction” variable is qualitative, we need to remove it before calculation.
+
+# Calculate the correlation, variance and covariance matrices
+cor(Smarket[,-9]) 
+
+
+#As one would expect, the correlations between the lag variables and today’s returns are close to zero. The only substantial correlation is between “Year” and “Volume”. By plotting the data we see that “Volume” is increasing over time.
+
+attach(Smarket)
+plot(Volume)
+```
+
+
+
+
+#### Linear Discriminant Analysis 
+Now we will perform LDA on the “Smarket” data. In R, we fit an LDA model using the lda() function, which is part of the “MASS” library. Notice that the syntax for the lda() function is identical to that of lm(). We fit the model using only the observations before 2005, which is the “train” subset.
+
+```{r}
+library(MASS)
+# Subset out the training data
+train <- (Year<2005)
+Smarket.2005=Smarket[!train,]
+lda.fit = lda(Direction~Lag1+Lag2,data=Smarket, subset=train)
+lda.fit
+plot(lda.fit)
+
+lda.pred <- predict(lda.fit,Smarket.2005)
+names(lda.pred)
+
+lda.class <- lda.pred$class
+Direction.2005 <- Direction[!train]
+table(lda.class,Direction.2005)
+
+mean(lda.class == Direction.2005)
+
+
+sum(lda.pred$posterior[,1] >= 0.5)
+
+
+
+
+sum(lda.pred$posterior[,1] < 0.5)
+
+
+
+lda.pred$posterior[1:20, 1]
+
+
+
+lda.class[1:20]
+
+
+plot(Lag1, Lag2, col = Direction)
+#abline(-0.642 * Lag1-0.514*Lag2)
+abline(a=0, b=(-0.642/0.514))
+```
+
+
+
+#### Quadratic Linear Analysis
+We will now fit a QDA model to the Smarket data. QDA is implemented in R using the qda() function, which is also part of the MASS library. The qda() syntax is identical to that of lda().
+
+```{r}
+qda.fit <- qda(Direction ~ Lag1 + Lag2, data = Smarket, subset = train)
+qda.fit
+```
+
+The output contains the group means. But it does not contain the coefficient of the linear discriminants, because the QDA classifier involves a quadratic, rather than a linear, function of the predictors. The predict() function works in exactly the same fashion as for LDA.
+```{r}
+qda.class <- predict(qda.fit, Smarket.2005)$class
+table(qda.class,Direction.2005)
+
+mean(qda.class==Direction.2005)
+
+```
+
+
+Interestingly, the QDA predictions are accurate almost 60% of the time, even though the 2005 data was not used to fit the model. This level of accuracy is quite impressive for stock market data, which is known to be quite hard to model accurately. This suggests that the quadratic form assumed by QDA may capture the true relationship more accurately than the linear forms assumed by LDA and logistic regression. However, we recommend evaluating this method’s performance on a larger test set before betting that this approach will consistently beat the market!
+
+
+
+# Lab 5:  Logistic Regression
+
+
+```{r}
+library(ISLR)
+attach(Smarket)
+
+glm.fit <- glm(Direction ~ Lag1 + Lag2 + Lag3 + Lag4 + Lag5 + Volume,
+               data = Smarket, family = binomial)
+summary(glm.fit)
+coef(glm.fit)
+summary(glm.fit)$coef
+#  The p-values are in the 4th column, to get the pvalue we do:
+summary(glm.fit)$coef[,4]
+
+# The probability of the market going up given the above model
+glm.probs <- predict(glm.fit, type = "response")
+glm.probs[1:10] # Predicted results
+length(glm.probs)
+
+contrasts(Direction)
+
+glm.pred <- rep("Down", 1250)
+glm.pred[glm.probs > 0.5] ="Up"
+
+table(glm.pred, Direction)
+(507+145)/1250
+mean(glm.pred == Direction)
+
+
+train <- (Year < 2005)
+
+Smarket.2005 <- Smarket[!train, ]
+dim(Smarket.2005)
+
+Direction.2005=Direction[!train]
+
+glm.fit <- glm(Direction~Lag1+Lag2+Lag3+Lag4+Lag5+Volume, data=Smarket ,family =binomial ,subset =train )
+glm.probs <- predict(glm.fit ,Smarket.2005 , type="response")
+
+
+glm.pred=rep("Down",252)
+glm.pred[glm.probs>.5]="Up"
+table(glm.pred,Direction.2005)
+
+mean(glm.pred==Direction.2005)
+
+mean(glm.pred!=Direction.2005)
+
+glm.fit=glm(Direction~Lag1+Lag2, data=Smarket ,family =binomial ,subset =train )
+glm.probs =predict(glm.fit ,Smarket.2005 , type="response")
+glm.pred=rep("Down",252)
+glm.pred[glm.probs>.5]="Up"
+table(glm.pred,Direction.2005)
+
+mean(glm.pred == Direction.2005)
+
+106/(106+76)
+```
+
+
+## K Nearest Neighbors
+
+
+```{r}
+set.seed(1)
+
+library(class)
+train.x <- cbind(Lag1 ,Lag2)[train ,]
+test.x <- cbind(Lag1 ,Lag2)[!train ,]
+train.Direction <- Direction[train]
+
+knn.pred <- knn(train.x, test.x, train.Direction, k = 1)
+table(knn.pred, Direction.2005)
+
+mean(knn.pred == Direction.2005)
+
+set.seed(1)
+knn.pred=knn(train.X,test.X,train.Direction ,k=1)
+table(knn.pred ,Direction.2005)
+
+(83+43)/252
+
+
+knn.pred=knn(train.X,test.X,train.Direction ,k=3)
+table(knn.pred ,Direction.2005)
+
+mean(knn.pred== Direction.2005)
+
+k <- c(1:8)
+error = c()
+for (i in 1:8){
+  knn.pred = knn(train.x, test.x, train.Direction, k = 3)
+  error[i] = mean(knn.pred != Direction.2005)
+}
+plot(k, error)
+order(error)
+```
+
+
+#### Caravan data set 
+
+```{r}
+dim(Caravan)
+attach(Caravan)
+summary(Purchase)
+348/5822
+
+standardized.X=scale(Caravan[,-86])
+var(Caravan[,1])
+var(Caravan[,2])
+var(standardized.X[,1])
+var(standardized.X[,2])
+
+test = 1:1000
+train.X=standardized.X[-test ,]
+test.X=standardized.X[test ,]
+train.Y=Purchase[-test]
+test.Y=Purchase[test]
+set.seed (1)
+knn.pred=knn(train.X,test.X,train.Y,k=1)
+mean(test.Y!= knn.pred)
+mean(test.Y!="No")
+table(knn.pred ,test.Y)
+
+9/(68+9)
+
+```
+
+
+
+
+## Lab 6 - Validation Set, LOOCV, and K-Folds
+
+```{r}
+set.seed(1)
+train <- sample(392,196)
+lm.fit <- lm(mpg ~ horsepower, data = Auto, subset = train)
+```
+
+
+
+
+## Lab 7 - Subset Selection Methods
+```{r}
+library(ISLR)
+#fix(Hitters)
+names(Hitters)
+dim(Hitters)
+sum(is.na(Hitters$Salary))
+Hitters <- na.omit(Hitters)
+dim(Hitters)
+sum(is.na(Hitters))
+
+library(leaps)
+regfit.full <- regsubsets(Salary~.,Hitters)
+summary(regfit.full)
+
+
+regfit.full=regsubsets(Salary~.,data=Hitters,nvmax=19)
+reg.summary=summary(regfit.full)
+names(reg.summary)
+reg.summary$rsq
+
+par(mfrow=c(1,2))
+plot(reg.summary$rss,xlab="Number of Variables",ylab="RSS",type="l")
+plot(reg.summary$adjr2,xlab="Number of Variables",ylab="Adjusted RSq",type="l")
+which.max(reg.summary$adjr2)
+points(11,reg.summary$adjr2[11], col="red",cex=2,pch=20)
+
+par(mfrow=c(1,2))
+plot(reg.summary$cp,xlab="Number of Variables",ylab="Cp",type='l')
+which.min(reg.summary$cp)
+points(10,reg.summary$cp[10],col="red",cex=2,pch=20)
+which.min(reg.summary$bic)
+plot(reg.summary$bic,xlab="Number of Variables",ylab="BIC",type='l')
+points(6,reg.summary$bic[6],col="red",cex=2,pch=20)
+
+par(mfrow= c(1,1))
+plot(regfit.full,scale="r2")
+
+plot(regfit.full,scale="adjr2")
+plot(regfit.full,scale="Cp")
+plot(regfit.full,scale="bic")
+
+coef(regfit.full,6)
+
+regfit.fwd=regsubsets(Salary~.,data=Hitters,nvmax=19,method="forward")
+summary(regfit.fwd)
+
+regfit.bwd=regsubsets(Salary~.,data=Hitters,nvmax=19,method="backward")
+summary(regfit.bwd)
+coef(regfit.full,7)
+coef(regfit.fwd,7)
+coef(regfit.bwd,7)
+
+set.seed(1)
+train=sample(c(TRUE,FALSE), nrow(Hitters),rep=TRUE)
+test=(!train)
+
+regfit.best=regsubsets(Salary~.,data=Hitters[train,],nvmax=19)
+test.mat=model.matrix(Salary~.,data=Hitters[test,])
+
+val.errors=rep(NA,19)
+for(i in 1:19){
+   coefi=coef(regfit.best,id=i)
+   pred=test.mat[,names(coefi)]%*%coefi
+   val.errors[i]=mean((Hitters$Salary[test]-pred)^2)
+}
+
+```
+
